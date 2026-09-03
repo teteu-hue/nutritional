@@ -1,0 +1,239 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+enum BiologicalSex {
+  male
+  female
+}
+
+enum ActivityLevel {
+  sedentario
+  leve
+  moderado
+  ativo
+  muito_ativo
+}
+
+enum Goal {
+  perder_peso
+  manter_peso
+  ganhar_peso
+}
+
+enum FoodSource {
+  base
+  user
+}
+
+enum BaseUnit {
+  g100 @map("100g")
+  ml100 @map("100ml")
+}
+
+enum MealType {
+  cafe_da_manha
+  almoco
+  jantar
+  lanche
+}
+
+enum AiInteractionStatus {
+  success
+  error
+}
+
+model User {
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  passwordHash          String    @map("password_hash")
+  onboardingCompletedAt DateTime? @map("onboarding_completed_at")
+  emailVerified         DateTime? @map("email_verified")
+  name                  String?
+  image                 String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  profile        UserProfile?
+  accounts       Account[]
+  sessions       Session[]
+  foods          Food[]
+  meals          Meal[]
+  goalOverride   NutritionGoalOverride?
+  aiInteractions AiInteraction[]
+  rateLimitHits  RateLimitHit[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model UserProfile {
+  userId         String        @id @map("user_id")
+  dateOfBirth    DateTime      @map("date_of_birth") @db.Date
+  biologicalSex  BiologicalSex @map("biological_sex")
+  heightCm       Decimal       @map("height_cm") @db.Decimal(6, 2)
+  weightKg       Decimal       @map("weight_kg") @db.Decimal(6, 2)
+  bodyFatPercent Decimal?      @map("body_fat_percent") @db.Decimal(4, 2)
+  activityLevel  ActivityLevel @map("activity_level")
+  goal           Goal
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model Food {
+  id          String     @id @default(cuid())
+  source      FoodSource
+  ownerUserId String?    @map("owner_user_id")
+  name        String
+  baseUnit    BaseUnit   @map("base_unit")
+  kcal        Decimal    @db.Decimal(10, 2)
+  proteinG    Decimal    @map("protein_g") @db.Decimal(10, 2)
+  carbG       Decimal    @map("carb_g") @db.Decimal(10, 2)
+  fatG        Decimal    @map("fat_g") @db.Decimal(10, 2)
+  fiberG      Decimal    @map("fiber_g") @db.Decimal(10, 2)
+  sodiumMg    Decimal    @map("sodium_mg") @db.Decimal(10, 2)
+  deletedAt   DateTime?  @map("deleted_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  owner     User?      @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  mealItems MealItem[]
+
+  @@unique([ownerUserId, name])
+  @@index([source])
+  @@map("foods")
+}
+
+model Meal {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  mealDate        DateTime  @map("meal_date") @db.Date
+  mealTime        DateTime? @map("meal_time") @db.Time(0)
+  mealType        MealType  @map("meal_type")
+  totalsKcal      Decimal   @map("totals_kcal") @db.Decimal(10, 2)
+  totalsProteinG  Decimal   @map("totals_protein_g") @db.Decimal(10, 2)
+  totalsCarbG     Decimal   @map("totals_carb_g") @db.Decimal(10, 2)
+  totalsFatG      Decimal   @map("totals_fat_g") @db.Decimal(10, 2)
+  totalsFiberG    Decimal   @map("totals_fiber_g") @db.Decimal(10, 2)
+  totalsSodiumMg  Decimal   @map("totals_sodium_mg") @db.Decimal(10, 2)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items MealItem[]
+
+  @@index([userId, mealDate])
+  @@map("meals")
+}
+
+model MealItem {
+  id                String  @id @default(cuid())
+  mealId            String  @map("meal_id")
+  foodId            String  @map("food_id")
+  foodNameSnapshot  String  @map("food_name_snapshot")
+  portionAmount     Decimal @map("portion_amount") @db.Decimal(10, 2)
+  portionUnit       BaseUnit @map("portion_unit")
+  kcalSnapshot      Decimal @map("kcal_snapshot") @db.Decimal(10, 2)
+  proteinGSnapshot  Decimal @map("protein_g_snapshot") @db.Decimal(10, 2)
+  carbGSnapshot     Decimal @map("carb_g_snapshot") @db.Decimal(10, 2)
+  fatGSnapshot      Decimal @map("fat_g_snapshot") @db.Decimal(10, 2)
+  fiberGSnapshot    Decimal @map("fiber_g_snapshot") @db.Decimal(10, 2)
+  sodiumMgSnapshot  Decimal @map("sodium_mg_snapshot") @db.Decimal(10, 2)
+
+  meal Meal @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  food Food @relation(fields: [foodId], references: [id])
+
+  @@map("meal_items")
+}
+
+model NutritionGoalOverride {
+  userId    String   @id @map("user_id")
+  kcal      Decimal  @db.Decimal(10, 2)
+  proteinG  Decimal  @map("protein_g") @db.Decimal(10, 2)
+  carbG     Decimal  @map("carb_g") @db.Decimal(10, 2)
+  fatG      Decimal  @map("fat_g") @db.Decimal(10, 2)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("nutrition_goal_overrides")
+}
+
+model AiInteraction {
+  id                String              @id @default(cuid())
+  userId            String              @map("user_id")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  intent            String
+  redactedContext   Json                @map("redacted_context")
+  response          String?             @db.Text
+  provider          String              @default("deepseek")
+  tokensPrompt      Int?                @map("tokens_prompt")
+  tokensCompletion  Int?                @map("tokens_completion")
+  status            AiInteractionStatus
+  errorMessage      String?             @map("error_message") @db.Text
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("ai_interactions")
+}
+
+model RateLimitHit {
+  id     String   @id @default(cuid())
+  userId String   @map("user_id")
+  scope  String
+  hitAt  DateTime @default(now()) @map("hit_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, scope, hitAt])
+  @@map("rate_limit_hits")
+}
