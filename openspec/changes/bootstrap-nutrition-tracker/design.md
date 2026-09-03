@@ -65,8 +65,11 @@ Um único monorepo trivial, um único projeto Vercel: `.` na raiz é o app Next.
 
 ```
 src/
+  middleware.ts                  # onboarding gate + auth gate para (app)
   app/
     (auth)/login/…               # UI de auth
+    (auth)/signup/…              # UI de cadastro
+    (app)/onboarding/…           # tela obrigatória pós-cadastro
     (app)/foods/…                # UI de food-catalog
     (app)/meals/…                # UI de meal-logging
     (app)/dashboard/…            # UI de nutrition-dashboard
@@ -109,8 +112,8 @@ docker-compose.yml               # postgres + web (dev-only)
 
 **Decisão:** Esquema relacional em Postgres, gerenciado por **Prisma Migrate**. Entidades principais (nomes de campos em `snake_case` via `@map` para casar com estilo SQL, mas o cliente TS os expõe como `camelCase`):
 
-- `User(id, email @unique, password_hash, created_at, …)`
-- `UserProfile(user_id @id, date_of_birth, biological_sex, height_cm, weight_kg, activity_level, goal, updated_at)`
+- `User(id, email @unique, password_hash, created_at, onboarding_completed_at nullable, …)` — `onboarding_completed_at` marca quando o usuário concluiu o onboarding inicial e é a fonte de verdade que o middleware usa para decidir se redireciona para `/onboarding`.
+- `UserProfile(user_id @id, date_of_birth, biological_sex, height_cm, weight_kg, body_fat_percent nullable, activity_level, goal, updated_at)` — `body_fat_percent` é `Decimal(4, 2)` opcional, restrito por validação Zod ao intervalo 3,00–75,00; permanece `NULL` para usuários que não informam.
 - `Session(session_token @id, user_id, expires_at)` — modelo padrão do Auth.js Prisma adapter.
 - `Food(id, source enum('base','user'), owner_user_id nullable, name, base_unit enum('100g','100ml'), kcal, protein_g, carb_g, fat_g, fiber_g, sodium_mg, deleted_at)` com índice `UNIQUE(owner_user_id, name)` para alimentos personalizados e índice funcional `LOWER(unaccent(name))` para busca sem acento (aplicado por SQL bruto na migração, já que Prisma não modela `unaccent` diretamente).
 - `Meal(id, user_id, meal_date, meal_time nullable, meal_type, totals_kcal, totals_protein_g, totals_carb_g, totals_fat_g, totals_fiber_g, totals_sodium_mg, created_at)` — **totais materializados**.
@@ -179,6 +182,10 @@ Cada rota mapeia diretamente para um ou mais scenarios do spec correspondente. E
 ### Frontend
 
 **Decisão:** UI construída sobre o próprio Next.js — **Server Components** para telas majoritariamente de leitura (dashboard, listas), **Client Components** para formulários e interações. Estado de servidor no cliente com **TanStack Query**; formulários com **React Hook Form + Zod** (mesmos schemas usados no server-side). Cliente HTTP em `src/lib/api-client.ts` que injeta o cookie de sessão automaticamente (por ser same-origin) e trata 401 limpando a sessão local e redirecionando para `/login`.
+
+**Fluxo de onboarding pós-cadastro:** existe uma rota dedicada `/(app)/onboarding/page.tsx` (Client Component com React Hook Form + Zod) que é a **primeira tela autenticada** apresentada a um usuário recém-cadastrado. Ela coleta, num único formulário, data de nascimento, sexo biológico, altura, peso atual, nível de atividade, objetivo e o percentual de gordura corporal (opcional). Ao submeter, o formulário chama `PUT /api/v1/profile`; o handler, ao aceitar o payload, também grava `users.onboarding_completed_at = now()` na mesma transação e redireciona o cliente para `/dashboard`.
+
+O **gate** que impede acesso ao restante do app antes do onboarding é implementado em um `middleware.ts` na raiz que, para toda rota do grupo `(app)`, checa a sessão via Auth.js e, se `session.user.onboardingCompletedAt` é nulo, redireciona para `/onboarding`. Rotas de API do grupo `(app)` (todas menos `/api/v1/auth/*` e `/api/v1/profile`) fazem a mesma checagem no `requireUser()` e respondem 409 `onboarding_required` para clientes de API não-browser; o cliente HTTP do frontend trata esse status redirecionando o usuário para `/onboarding`. O onboarding só roda uma única vez por usuário — logins subsequentes com `onboarding_completed_at` já preenchido ignoram o gate e a rota `/onboarding` passa a servir apenas como página de edição do perfil já existente.
 
 ### Dev local com Docker Compose
 

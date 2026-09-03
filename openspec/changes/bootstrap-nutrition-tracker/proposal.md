@@ -5,7 +5,8 @@ Não existe hoje neste projeto (greenfield) nenhum sistema para que usuários re
 ## What Changes
 
 - Novo produto: aplicação web para acompanhamento nutricional pessoal, composta por um backend com API REST e um frontend SPA.
-- Autenticação de usuários com cadastro (e-mail + senha), login e perfil (idade, sexo, altura, peso, nível de atividade e objetivo — perder peso, manter, ganhar).
+- Autenticação de usuários com cadastro (e-mail + senha), login e perfil (idade, sexo, altura, peso, percentual de gordura corporal — opcional — nível de atividade e objetivo — perder peso, manter, ganhar).
+- Tela inicial de **onboarding** obrigatória logo após o cadastro, que coleta os dados do perfil (altura, peso atual, percentual de gordura opcional, data de nascimento, sexo biológico, nível de atividade e objetivo) antes de liberar acesso a qualquer outra área autenticada da aplicação.
 - Catálogo de alimentos com informações nutricionais (calorias, proteínas, carboidratos, gorduras, fibras, sódio) e busca por nome; permite ao usuário cadastrar alimentos personalizados.
 - Registro de refeições (café da manhã, almoço, jantar, lanches) com data, hora, alimento e porção; cálculo automático dos macros consumidos.
 - Metas nutricionais diárias calculadas a partir do perfil (BMR via Mifflin–St Jeor + fator de atividade + ajuste pelo objetivo) com opção de sobrescrita manual pelo usuário.
@@ -30,7 +31,7 @@ Não existe hoje neste projeto (greenfield) nenhum sistema para que usuários re
 ## Capabilities
 
 ### New Capabilities
-- `user-accounts`: cadastro, autenticação, sessão e perfil nutricional do usuário (dados antropométricos, nível de atividade, objetivo).
+- `user-accounts`: cadastro, autenticação, sessão, onboarding pós-cadastro e perfil nutricional do usuário (dados antropométricos, percentual de gordura corporal opcional, nível de atividade, objetivo).
 - `food-catalog`: catálogo pesquisável de alimentos com valores nutricionais por 100 g/ml e suporte a alimentos personalizados por usuário.
 - `meal-logging`: registro de refeições e porções consumidas ao longo do dia, com cálculo dos totais nutricionais.
 - `nutrition-goals`: cálculo e gestão das metas diárias de calorias e macronutrientes derivadas do perfil, com override manual.
