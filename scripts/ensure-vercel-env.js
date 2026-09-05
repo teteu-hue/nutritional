@@ -1,4 +1,6 @@
 /** Maps Vercel / Neon / Supabase Postgres env vars to what Prisma expects. */
+const fs = require("fs");
+
 function isPoolerUrl(url) {
   return /pooler|:6543|pgbouncer/i.test(url);
 }
@@ -26,7 +28,6 @@ function mapStoragePrefixedEnv() {
     }
   }
 
-  // Direct host (db.*.supabase.co) → DIRECT_URL for prisma migrate deploy
   if (
     process.env.STORAGE_POSTGRES_HOST &&
     process.env.STORAGE_POSTGRES_PASSWORD &&
@@ -61,7 +62,6 @@ function normalizeDatabaseEnv() {
       "";
   }
 
-  // Migrations must use db.*.supabase.co (5432), not the transaction pooler (6543).
   if (
     !process.env.POSTGRES_URL_NON_POOLING ||
     isPoolerUrl(process.env.POSTGRES_URL_NON_POOLING)
@@ -90,32 +90,56 @@ function fail(message) {
   process.exit(1);
 }
 
-normalizeDatabaseEnv();
-
-if (!process.env.DATABASE_URL) {
-  fail(
-    "nenhuma URL de banco encontrada.\n" +
-      "  Conecte Supabase via Vercel Storage ou defina DATABASE_URL / STORAGE_POSTGRES_PRISMA_URL",
-  );
+/** Prisma CLI reads .env; child shells do not inherit Node process.env mutations. */
+function writePrismaEnvFile() {
+  const lines = [];
+  if (process.env.DATABASE_URL) {
+    lines.push(`DATABASE_URL=${JSON.stringify(process.env.DATABASE_URL)}`);
+  }
+  if (process.env.POSTGRES_URL_NON_POOLING) {
+    lines.push(
+      `POSTGRES_URL_NON_POOLING=${JSON.stringify(process.env.POSTGRES_URL_NON_POOLING)}`,
+    );
+  }
+  fs.writeFileSync(".env", `${lines.join("\n")}\n`);
 }
 
-if (
-  isPoolerUrl(process.env.DATABASE_URL) &&
-  (!process.env.POSTGRES_URL_NON_POOLING || isPoolerUrl(process.env.POSTGRES_URL_NON_POOLING))
-) {
-  fail(
-    "DATABASE_URL aponta para o pooler, mas falta conexão direta para migrations.\n" +
-      "  A integração Supabase deve injetar STORAGE_POSTGRES_HOST (db.*.supabase.co).\n" +
-      "  Ou defina DIRECT_URL manualmente (porta 5432, host db.*.supabase.co).",
-  );
+function prepareVercelEnv() {
+  normalizeDatabaseEnv();
+
+  if (!process.env.DATABASE_URL) {
+    fail(
+      "nenhuma URL de banco encontrada.\n" +
+        "  Conecte Supabase via Vercel Storage ou defina DATABASE_URL / STORAGE_POSTGRES_PRISMA_URL",
+    );
+  }
+
+  if (
+    isPoolerUrl(process.env.DATABASE_URL) &&
+    (!process.env.POSTGRES_URL_NON_POOLING ||
+      isPoolerUrl(process.env.POSTGRES_URL_NON_POOLING))
+  ) {
+    fail(
+      "DATABASE_URL aponta para o pooler, mas falta conexão direta para migrations.\n" +
+        "  A integração Supabase deve injetar STORAGE_POSTGRES_HOST (db.*.supabase.co).\n" +
+        "  Ou defina DIRECT_URL manualmente (porta 5432, host db.*.supabase.co).",
+    );
+  }
+
+  if (!process.env.AUTH_SECRET || process.env.AUTH_SECRET.length < 16) {
+    fail(
+      "AUTH_SECRET ausente ou curto demais (mínimo 16 caracteres).\n" +
+        "  → Settings → Environment Variables → Add AUTH_SECRET\n" +
+        "  → Gere com: openssl rand -base64 32",
+    );
+  }
+
+  writePrismaEnvFile();
+  console.log("[ensure-vercel-env] OK — DATABASE_URL, DIRECT_URL e AUTH_SECRET configurados.");
 }
 
-if (!process.env.AUTH_SECRET || process.env.AUTH_SECRET.length < 16) {
-  fail(
-    "AUTH_SECRET ausente ou curto demais (mínimo 16 caracteres).\n" +
-      "  → Settings → Environment Variables → Add AUTH_SECRET\n" +
-      "  → Gere com: openssl rand -base64 32",
-  );
-}
+module.exports = { prepareVercelEnv, normalizeDatabaseEnv };
 
-console.log("[ensure-vercel-env] OK — DATABASE_URL, DIRECT_URL e AUTH_SECRET configurados.");
+if (require.main === module) {
+  prepareVercelEnv();
+}
