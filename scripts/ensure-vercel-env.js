@@ -1,4 +1,4 @@
-/** Vercel Postgres injects POSTGRES_* — map env vars Prisma and the app expect. */
+/** Maps Vercel/Neon Postgres env vars to what Prisma and the app expect. */
 function normalizeDatabaseEnv() {
   if (!process.env.DATABASE_URL) {
     if (process.env.POSTGRES_PRISMA_URL) {
@@ -10,7 +10,11 @@ function normalizeDatabaseEnv() {
 
   if (!process.env.POSTGRES_URL_NON_POOLING) {
     process.env.POSTGRES_URL_NON_POOLING =
-      process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.POSTGRES_PRISMA_URL || "";
+      process.env.DATABASE_URL_UNPOOLED ||
+      process.env.POSTGRES_URL ||
+      process.env.DATABASE_URL ||
+      process.env.POSTGRES_PRISMA_URL ||
+      "";
   }
 
   if (!process.env.DATABASE_URL && process.env.POSTGRES_URL_NON_POOLING) {
@@ -28,7 +32,7 @@ normalizeDatabaseEnv();
 if (!process.env.DATABASE_URL) {
   fail(
     "nenhuma URL de banco encontrada.\n" +
-      "  → Vercel Dashboard → Storage → Create Database → Postgres → Connect to Project\n" +
+      "  → Vercel Dashboard → Storage → Marketplace → Neon → Add Integration\n" +
       "  → Ou defina DATABASE_URL manualmente em Settings → Environment Variables",
   );
 }
