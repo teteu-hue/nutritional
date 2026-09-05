@@ -37,6 +37,18 @@ export async function GET(request: Request) {
   await run("select1", () =>
     prisma.$queryRawUnsafe<Array<{ ok: number }>>("SELECT 1 AS ok"),
   );
+  await run("currentDatabase", () =>
+    prisma.$queryRawUnsafe<
+      Array<{ database: string; user: string; schema: string }>
+    >(
+      "SELECT current_database() AS database, current_user AS user, current_schema() AS schema",
+    ),
+  );
+  await run("publicTables", () =>
+    prisma.$queryRawUnsafe<Array<{ table_name: string }>>(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name",
+    ),
+  );
   await run("usersCount", () => prisma.user.count());
   await run("prismaVersion", () =>
     prisma.$queryRawUnsafe<Array<{ version: string }>>("SELECT version() AS version"),
