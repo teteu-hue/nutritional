@@ -1,4 +1,7 @@
+import { normalizeDatabaseEnv } from "@/server/core/env";
 import { PrismaClient } from "@prisma/client";
+
+normalizeDatabaseEnv();
 
 const globalForPrisma = globalThis as unknown as {
   __prisma?: PrismaClient;

@@ -1,3 +1,4 @@
+import { normalizeDatabaseEnv } from "@/server/core/env";
 import { z } from "zod";
 
 const envSchema = z.object({
@@ -17,6 +18,7 @@ let cached: AppConfig | null = null;
 
 export function getConfig(): AppConfig {
   if (!cached) {
+    normalizeDatabaseEnv();
     cached = envSchema.parse(process.env);
   }
   return cached;
