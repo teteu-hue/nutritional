@@ -10,7 +10,41 @@ function ensurePgbouncerParam(url: string): string {
   return url.includes("?") ? `${url}&pgbouncer=true` : `${url}?pgbouncer=true`;
 }
 
+function mapStoragePrefixedEnv(): void {
+  const pairs: [string, string][] = [
+    ["STORAGE_POSTGRES_PRISMA_URL", "POSTGRES_PRISMA_URL"],
+    ["STORAGE_POSTGRES_URL", "POSTGRES_URL"],
+    ["STORAGE_POSTGRES_URL_NON_POOLING", "POSTGRES_URL_NON_POOLING"],
+    ["STORAGE_POSTGRES_USER", "POSTGRES_USER"],
+    ["STORAGE_POSTGRES_PASSWORD", "POSTGRES_PASSWORD"],
+    ["STORAGE_POSTGRES_HOST", "POSTGRES_HOST"],
+    ["STORAGE_POSTGRES_DATABASE", "POSTGRES_DATABASE"],
+  ];
+
+  for (const [storageKey, targetKey] of pairs) {
+    if (process.env[storageKey] && !process.env[targetKey]) {
+      process.env[targetKey] = process.env[storageKey];
+    }
+  }
+
+  if (
+    process.env.STORAGE_POSTGRES_HOST &&
+    process.env.STORAGE_POSTGRES_PASSWORD &&
+    !process.env.DIRECT_URL
+  ) {
+    const host = process.env.STORAGE_POSTGRES_HOST;
+    const db = process.env.STORAGE_POSTGRES_DATABASE || "postgres";
+    const user = process.env.STORAGE_POSTGRES_USER || "postgres";
+    const password = encodeURIComponent(process.env.STORAGE_POSTGRES_PASSWORD);
+    if (!host.includes("pooler")) {
+      process.env.DIRECT_URL = `postgres://${user}:${password}@${host}:5432/${db}?sslmode=require`;
+    }
+  }
+}
+
 export function normalizeDatabaseEnv(): void {
+  mapStoragePrefixedEnv();
+
   if (!process.env.DATABASE_URL) {
     if (process.env.POSTGRES_PRISMA_URL) {
       process.env.DATABASE_URL = process.env.POSTGRES_PRISMA_URL;
