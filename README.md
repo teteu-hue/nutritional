@@ -46,7 +46,7 @@ Acesse `http://localhost:3000`.
    - Se veio do Neon: remova variáveis `POSTGRES_*` / `DATABASE_URL_UNPOOLED` antigas e use banco **novo** (evita erro P3009)
 3. Em **Settings → Environment Variables** (Production):
    - `AUTH_SECRET` — string aleatória ≥ 32 caracteres (**obrigatório**). Ex.: `openssl rand -base64 32`
-   - `AUTH_URL` — URL de produção, ex.: `https://nutritional.vercel.app`
+   - `AUTH_URL` — URL de produção, ex.: `https://nutricaoia.vercel.app`
    - `DEEPSEEK_API_KEY` — opcional (assistente de IA)
    - `AI_RATE_LIMIT_PER_HOUR=20` — opcional
 4. Faça **Redeploy** (Deployments → ⋯ → Redeploy). O script `vercel-build` valida env, aplica migrações e faz o build.
@@ -60,7 +60,7 @@ Acesse `http://localhost:3000`.
 | `P3009` / migration failed | Deploy anterior quebrou no meio (Neon) | Use Supabase **novo** + `DIRECT_URL`; não reutilize banco com migration falha |
 | Falta `DIRECT_URL` | Só configurou pooler (6543) | Adicione connection string **Direct** (5432) como `DIRECT_URL` |
 | `/api/v1/health` retorna `NOT_FOUND` | Produção ainda no deploy antigo (build falhou ou projeto errado) | Confira Deployments: o último deve estar **Ready** no commit da `main` |
-| Homepage mostra loader / I18nProvider | Domínio aponta para **outro** projeto Vercel (código antigo) | Settings → Domains: confira qual projeto usa `nutritional.vercel.app` |
+| Homepage mostra loader / I18nProvider | Domínio aponta para **outro** projeto Vercel (código antigo) | Settings → Domains: use `nutricaoia.vercel.app` no projeto deste repo |
 | Preview pede login Vercel | Deployment Protection ativo | Settings → Deployment Protection → desativar ou usar URL de Production |
 
 **Smoke test:** `curl https://SEU-DOMINIO.vercel.app/api/v1/health` → `{"status":"ok","version":"v1"}`.
