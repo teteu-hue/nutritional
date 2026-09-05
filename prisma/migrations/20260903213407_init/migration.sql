@@ -1,5 +1,12 @@
--- CreateExtension
-CREATE EXTENSION IF NOT EXISTS unaccent;
+-- CreateExtension (Supabase uses schema "extensions"; local Postgres uses public)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'extensions') THEN
+    CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA extensions;
+  ELSE
+    CREATE EXTENSION IF NOT EXISTS unaccent;
+  END IF;
+END $$;
 
 -- Immutable wrapper for unaccent (required for functional index)
 CREATE OR REPLACE FUNCTION f_unaccent(text)
@@ -9,7 +16,11 @@ IMMUTABLE
 PARALLEL SAFE
 STRICT
 AS $$
-  SELECT unaccent('unaccent', $1)
+  SELECT CASE
+    WHEN EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'extensions')
+    THEN extensions.unaccent('unaccent', $1)
+    ELSE unaccent('unaccent', $1)
+  END
 $$;
 
 -- CreateEnum
