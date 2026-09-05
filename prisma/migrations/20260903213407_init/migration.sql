@@ -1,27 +1,48 @@
--- CreateExtension (Supabase uses schema "extensions"; local Postgres uses public)
+-- CreateExtension e wrapper imutavel para unaccent.
+-- Precisa funcionar em Supabase (extensao geralmente vive em "extensions")
+-- e em Postgres padrao (schema "extensions" pode nao existir).
+-- Como f_unaccent e LANGUAGE sql, o corpo e resolvido na criacao — entao
+-- referencias a "extensions.unaccent" so podem existir quando aquele schema
+-- realmente contem a funcao. Detectamos e montamos o corpo com EXECUTE.
 DO $$
+DECLARE
+  target_schema text;
+  dict_name text;
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'extensions') THEN
-    CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA extensions;
+  IF EXISTS (
+    SELECT 1
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE p.proname = 'unaccent' AND n.nspname = 'extensions'
+  ) THEN
+    target_schema := 'extensions';
+    dict_name := 'extensions.unaccent';
   ELSE
-    CREATE EXTENSION IF NOT EXISTS unaccent;
+    BEGIN
+      CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA public;
+    EXCEPTION
+      WHEN insufficient_privilege THEN
+        RAISE NOTICE 'sem permissao para criar extensao unaccent — assumindo que ja existe';
+      WHEN undefined_file THEN
+        RAISE NOTICE 'unaccent nao instalavel neste Postgres — f_unaccent sera fallback';
+    END;
+    target_schema := 'public';
+    dict_name := 'public.unaccent';
   END IF;
-END $$;
 
--- Immutable wrapper for unaccent (required for functional index)
-CREATE OR REPLACE FUNCTION f_unaccent(text)
-RETURNS text
-LANGUAGE sql
-IMMUTABLE
-PARALLEL SAFE
-STRICT
-AS $$
-  SELECT CASE
-    WHEN EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'extensions')
-    THEN extensions.unaccent('unaccent', $1)
-    ELSE unaccent('unaccent', $1)
-  END
-$$;
+  EXECUTE format(
+    'CREATE OR REPLACE FUNCTION f_unaccent(text) RETURNS text ' ||
+    'LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT AS $F$ ' ||
+    'SELECT %I.unaccent(%L::regdictionary, $1) $F$',
+    target_schema,
+    dict_name
+  );
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE NOTICE 'falha ao configurar unaccent (%): usando fallback lower(text)', SQLERRM;
+    EXECUTE 'CREATE OR REPLACE FUNCTION f_unaccent(text) RETURNS text ' ||
+            'LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT AS $F$ SELECT lower($1) $F$';
+END $$;
 
 -- CreateEnum
 CREATE TYPE "BiologicalSex" AS ENUM ('male', 'female');
