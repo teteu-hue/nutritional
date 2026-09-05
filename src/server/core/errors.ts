@@ -23,6 +23,13 @@ export function jsonError(error: unknown) {
       { status: error.status },
     );
   }
-  console.error(error);
+  if (error instanceof Error) {
+    console.error(
+      `[api-error] ${error.name}: ${error.message}`,
+      error.stack ?? "",
+    );
+  } else {
+    console.error("[api-error] non-Error thrown:", error);
+  }
   return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
 }

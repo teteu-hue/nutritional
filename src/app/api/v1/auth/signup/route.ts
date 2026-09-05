@@ -14,14 +14,34 @@ export async function POST(request: Request) {
     }
 
     const user = await createUser(parsed.data.email, parsed.data.password);
-    await signIn("credentials", {
-      email: parsed.data.email,
-      password: parsed.data.password,
-      redirect: false,
-    });
+
+    // Best-effort auto-login. Se signIn falhar (ex.: instabilidade momentânea
+    // do provider ou do banco no callback), NÃO derrubamos o cadastro — o
+    // usuário já existe e pode fazer login manualmente. Isso evita 500 no
+    // fluxo de cadastro quando a criação de sessão falha por motivos externos.
+    let signedIn = true;
+    try {
+      await signIn("credentials", {
+        email: parsed.data.email,
+        password: parsed.data.password,
+        redirect: false,
+      });
+    } catch (signInError) {
+      signedIn = false;
+      console.error(
+        "[signup] falha ao autenticar automaticamente após criar usuário:",
+        signInError instanceof Error
+          ? `${signInError.name}: ${signInError.message}`
+          : signInError,
+      );
+    }
 
     return jsonOk(
-      { userId: user.id, redirectTo: "/onboarding" },
+      {
+        userId: user.id,
+        redirectTo: signedIn ? "/onboarding" : "/login",
+        autoSignedIn: signedIn,
+      },
       { status: 201 },
     );
   } catch (error) {

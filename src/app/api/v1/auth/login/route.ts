@@ -23,6 +23,13 @@ export async function POST(request: Request) {
     return jsonOk({ ok: true });
   } catch (error) {
     if (error instanceof ApiError) return jsonError(error);
+    // Loga o erro real (visível nos logs do Vercel) mas responde 401 para não
+    // vazar informação sobre existência de conta.
+    if (error instanceof Error) {
+      console.error(`[login] falha ao autenticar: ${error.name}: ${error.message}`);
+    } else {
+      console.error("[login] erro inesperado:", error);
+    }
     return jsonError(new ApiError(401, "Credenciais inválidas"));
   }
 }

@@ -24,12 +24,19 @@ export default function SignupPage() {
     }
     setLoading(true);
     try {
-      await apiFetch("/api/v1/auth/signup", {
+      const response = await apiFetch<{
+        userId: string;
+        redirectTo?: string;
+        autoSignedIn?: boolean;
+      }>("/api/v1/auth/signup", {
         method: "POST",
         body: JSON.stringify({ email, password, acceptTerms }),
         skipRedirect: true,
       });
-      router.replace("/onboarding");
+      if (response.autoSignedIn === false) {
+        toast.info("Conta criada. Faça login para continuar.");
+      }
+      router.replace(response.redirectTo ?? "/onboarding");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro no cadastro");
     } finally {
