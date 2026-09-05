@@ -36,12 +36,14 @@ Acesse `http://localhost:3000`.
 ## Deploy Vercel
 
 1. Crie (ou reconecte) o projeto Vercel apontando para a branch **`main`** deste repositório.
-2. **Criar banco Postgres (via Neon):**
-   - Vercel Dashboard → seu projeto → **Storage** → **Create Database**
-   - Na lista **Marketplace Database Providers**, escolha **Neon** (*Serverless Postgres*)
-   - Clique **Add Integration** → crie conta Neon (se precisar) → **Connect to Project**
-   - A integração injeta `DATABASE_URL`, `DATABASE_URL_UNPOOLED` e `POSTGRES_*` automaticamente
-   - Alternativas compatíveis: **Supabase** ou **Prisma Postgres** (também são Postgres)
+2. **Banco Postgres via Supabase (recomendado):**
+   - Vercel → **Storage** → **Create Database** → **Supabase** → **Add Integration**
+   - Crie/conecte um projeto Supabase e vincule ao projeto Vercel
+   - No [Supabase Dashboard](https://supabase.com/dashboard) → **Project Settings → Database → Connection string**:
+     - **Transaction** (porta **6543**) → variável `DATABASE_URL` na Vercel
+     - **Direct** (porta **5432**) → variável `DIRECT_URL` na Vercel
+   - **Importante:** migrações usam `DIRECT_URL`; a app usa `DATABASE_URL` (pooler)
+   - Se veio do Neon: remova variáveis `POSTGRES_*` / `DATABASE_URL_UNPOOLED` antigas e use banco **novo** (evita erro P3009)
 3. Em **Settings → Environment Variables** (Production):
    - `AUTH_SECRET` — string aleatória ≥ 32 caracteres (**obrigatório**). Ex.: `openssl rand -base64 32`
    - `AUTH_URL` — URL de produção, ex.: `https://nutritional.vercel.app`
@@ -55,6 +57,8 @@ Acesse `http://localhost:3000`.
 | Sintoma | Causa provável | O que fazer |
 |---------|----------------|-------------|
 | Build falha com `[ensure-vercel-env] ERRO` | Postgres ou `AUTH_SECRET` não configurados | Passos 2–3 acima, depois redeploy |
+| `P3009` / migration failed | Deploy anterior quebrou no meio (Neon) | Use Supabase **novo** + `DIRECT_URL`; não reutilize banco com migration falha |
+| Falta `DIRECT_URL` | Só configurou pooler (6543) | Adicione connection string **Direct** (5432) como `DIRECT_URL` |
 | `/api/v1/health` retorna `NOT_FOUND` | Produção ainda no deploy antigo (build falhou ou projeto errado) | Confira Deployments: o último deve estar **Ready** no commit da `main` |
 | Homepage mostra loader / I18nProvider | Domínio aponta para **outro** projeto Vercel (código antigo) | Settings → Domains: confira qual projeto usa `nutritional.vercel.app` |
 | Preview pede login Vercel | Deployment Protection ativo | Settings → Deployment Protection → desativar ou usar URL de Production |
