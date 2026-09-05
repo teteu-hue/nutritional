@@ -6,7 +6,8 @@ function isTransactionPoolerUrl(url: string): boolean {
 }
 
 function isMigrationUrl(url: string | undefined): boolean {
-  return Boolean(url) && !isTransactionPoolerUrl(url);
+  if (!url) return false;
+  return !isTransactionPoolerUrl(url);
 }
 
 function ensurePgbouncerParam(url: string): string {

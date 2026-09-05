@@ -38,6 +38,7 @@ function syncDatabaseSchema() {
 
   if (tryRun("pnpm exec prisma db push --skip-generate --accept-data-loss")) {
     console.log("[vercel-build] db push OK");
+    tryRun("pnpm exec prisma migrate resolve --applied 20260903213407_init");
     return;
   }
 
