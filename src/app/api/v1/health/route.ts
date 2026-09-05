@@ -79,20 +79,49 @@ export async function GET(request: Request) {
   );
 }
 
-// Recuperação manual: remove uma migration Prisma marcada como failed
-// (finished_at IS NULL AND rolled_back_at IS NULL) e opcionalmente sinaliza
-// que o schema deve ser recriado no próximo build. Protegido por AUTH_SECRET.
-//
+// Recuperação manual do schema.
 // Uso:
 //   curl -X POST "$HOST/api/v1/health?repair=1" -H "x-repair-token: $AUTH_SECRET"
+//
+// Sem token, o repair só executa se a tabela `users` NÃO existir — assim
+// serve como auto-heal seguro em ambientes fresh (idempotente: se todas as
+// tabelas já existem, o SQL é no-op).
+async function usersTableExists(): Promise<boolean> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ exists: boolean }>>(
+    "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') AS exists",
+  );
+  return rows[0]?.exists === true;
+}
+
 export async function POST(request: Request) {
   const url = new URL(request.url);
   if (url.searchParams.get("repair") !== "1") {
     return NextResponse.json({ error: "not-found" }, { status: 404 });
   }
   const token = request.headers.get("x-repair-token");
-  if (!token || token !== process.env.AUTH_SECRET) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const hasValidToken = token && token === process.env.AUTH_SECRET;
+
+  // Sem token: só permite se o banco estiver realmente em estado "vazio"
+  // (users table missing). Auto-heal seguro que não pode ser abusado.
+  if (!hasValidToken) {
+    try {
+      const exists = await usersTableExists();
+      if (exists) {
+        return NextResponse.json(
+          {
+            error: "forbidden",
+            reason: "users table exists — send x-repair-token: <AUTH_SECRET> to run anyway",
+          },
+          { status: 403 },
+        );
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return NextResponse.json(
+        { error: "cannot-check-state", message },
+        { status: 500 },
+      );
+    }
   }
 
   const started = Date.now();
