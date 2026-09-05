@@ -36,13 +36,17 @@ Acesse `http://localhost:3000`.
 ## Deploy Vercel
 
 1. Crie (ou reconecte) o projeto Vercel apontando para a branch **`main`** deste repositório.
-2. **Storage → Postgres → Connect to Project** (obrigatório antes do build).
+2. **Criar banco Postgres (via Neon):**
+   - Vercel Dashboard → seu projeto → **Storage** → **Create Database**
+   - Na lista **Marketplace Database Providers**, escolha **Neon** (*Serverless Postgres*)
+   - Clique **Add Integration** → crie conta Neon (se precisar) → **Connect to Project**
+   - A integração injeta `DATABASE_URL`, `DATABASE_URL_UNPOOLED` e `POSTGRES_*` automaticamente
+   - Alternativas compatíveis: **Supabase** ou **Prisma Postgres** (também são Postgres)
 3. Em **Settings → Environment Variables** (Production):
    - `AUTH_SECRET` — string aleatória ≥ 32 caracteres (**obrigatório**). Ex.: `openssl rand -base64 32`
    - `AUTH_URL` — URL de produção, ex.: `https://nutritional.vercel.app`
    - `DEEPSEEK_API_KEY` — opcional (assistente de IA)
    - `AI_RATE_LIMIT_PER_HOUR=20` — opcional
-   - `POSTGRES_*` é injetado pelo Storage; o script mapeia `POSTGRES_PRISMA_URL` → `DATABASE_URL`.
 4. Faça **Redeploy** (Deployments → ⋯ → Redeploy). O script `vercel-build` valida env, aplica migrações e faz o build.
 5. Após deploy OK: `vercel env pull .env.production.local && pnpm seed:prod` (catálogo base de alimentos).
 
