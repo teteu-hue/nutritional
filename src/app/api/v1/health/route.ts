@@ -49,6 +49,19 @@ export async function GET(request: Request) {
       "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name",
     ),
   );
+  await run("migrationsState", () =>
+    prisma.$queryRawUnsafe<
+      Array<{
+        migration_name: string;
+        started_at: Date | null;
+        finished_at: Date | null;
+        rolled_back_at: Date | null;
+        logs: string | null;
+      }>
+    >(
+      "SELECT migration_name, started_at, finished_at, rolled_back_at, logs FROM _prisma_migrations ORDER BY started_at DESC LIMIT 10",
+    ),
+  );
   await run("usersCount", () => prisma.user.count());
   await run("prismaVersion", () =>
     prisma.$queryRawUnsafe<Array<{ version: string }>>("SELECT version() AS version"),
