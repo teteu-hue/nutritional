@@ -8,6 +8,8 @@ import { rateLimit, assertRateLimitAllowed } from "@/server/ai-diet-assistant/ra
 import { prisma } from "@/server/core/db";
 import { hasDeepSeekKey } from "@/server/core/config";
 
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   try {
     const user = await requireUser(request);
