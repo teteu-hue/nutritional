@@ -122,7 +122,13 @@ function prepareVercelEnv() {
   }
 
   writePrismaEnvFile();
-  console.log("[ensure-vercel-env] OK — DATABASE_URL, DIRECT_URL e AUTH_SECRET configurados.");
+  const migrationHost = process.env.POSTGRES_URL_NON_POOLING.replace(
+    /^postgres(ql)?:\/\//,
+    "https://",
+  ).split("@")[1]?.split("/")[0];
+  console.log(
+    `[ensure-vercel-env] OK — DATABASE_URL, migrations via ${migrationHost ?? "?"}, AUTH_SECRET ok.`,
+  );
 }
 
 module.exports = { prepareVercelEnv, normalizeDatabaseEnv, isMigrationUrl, isTransactionPoolerUrl };
