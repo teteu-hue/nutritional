@@ -61,6 +61,7 @@ Acesse `http://localhost:3000`.
 | Falta `DIRECT_URL` | Só configurou pooler (6543) | Adicione connection string **Direct** (5432) como `DIRECT_URL` |
 | `/api/v1/health` retorna `NOT_FOUND` | Produção ainda no deploy antigo (build falhou ou projeto errado) | Confira Deployments: o último deve estar **Ready** no commit da `main` |
 | Homepage mostra loader / I18nProvider | Domínio aponta para **outro** projeto Vercel (código antigo) | Settings → Domains: use `nutricaoia.vercel.app` no projeto deste repo |
+| Onboarding envia e retorna página 404 (`Code: NOT_FOUND`, `ID: gru1::...`) | Usuário está em um domínio de outro projeto Vercel (ex.: `nutritional.vercel.app`) — não tem `/api/v1/*` deste repo | Acesse **`https://nutricaoia.vercel.app`** e refaça o onboarding. Para consertar de vez: Settings → Domains do projeto deste repo → adicione o domínio antigo, ou aposente o outro projeto. Confirme com `curl -sI https://SEU-DOMINIO/api/v1/health` (deve ser `200`, não `404`) |
 | Preview pede login Vercel | Deployment Protection ativo | Settings → Deployment Protection → desativar ou usar URL de Production |
 
 **Smoke test:** `curl https://SEU-DOMINIO.vercel.app/api/v1/health` → `{"status":"ok","version":"v1"}`.
