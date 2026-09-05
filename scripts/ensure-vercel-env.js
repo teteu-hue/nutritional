@@ -8,7 +8,43 @@ function ensurePgbouncerParam(url) {
   return url.includes("?") ? `${url}&pgbouncer=true` : `${url}?pgbouncer=true`;
 }
 
+/** Vercel Supabase Storage injects STORAGE_POSTGRES_* — mirror to standard names. */
+function mapStoragePrefixedEnv() {
+  const pairs = [
+    ["STORAGE_POSTGRES_PRISMA_URL", "POSTGRES_PRISMA_URL"],
+    ["STORAGE_POSTGRES_URL", "POSTGRES_URL"],
+    ["STORAGE_POSTGRES_URL_NON_POOLING", "POSTGRES_URL_NON_POOLING"],
+    ["STORAGE_POSTGRES_USER", "POSTGRES_USER"],
+    ["STORAGE_POSTGRES_PASSWORD", "POSTGRES_PASSWORD"],
+    ["STORAGE_POSTGRES_HOST", "POSTGRES_HOST"],
+    ["STORAGE_POSTGRES_DATABASE", "POSTGRES_DATABASE"],
+  ];
+
+  for (const [storageKey, targetKey] of pairs) {
+    if (process.env[storageKey] && !process.env[targetKey]) {
+      process.env[targetKey] = process.env[storageKey];
+    }
+  }
+
+  // Direct host (db.*.supabase.co) → DIRECT_URL for prisma migrate deploy
+  if (
+    process.env.STORAGE_POSTGRES_HOST &&
+    process.env.STORAGE_POSTGRES_PASSWORD &&
+    !process.env.DIRECT_URL
+  ) {
+    const host = process.env.STORAGE_POSTGRES_HOST;
+    const db = process.env.STORAGE_POSTGRES_DATABASE || "postgres";
+    const user = process.env.STORAGE_POSTGRES_USER || "postgres";
+    const password = encodeURIComponent(process.env.STORAGE_POSTGRES_PASSWORD);
+    if (!host.includes("pooler")) {
+      process.env.DIRECT_URL = `postgres://${user}:${password}@${host}:5432/${db}?sslmode=require`;
+    }
+  }
+}
+
 function normalizeDatabaseEnv() {
+  mapStoragePrefixedEnv();
+
   if (!process.env.DATABASE_URL) {
     if (process.env.POSTGRES_PRISMA_URL) {
       process.env.DATABASE_URL = process.env.POSTGRES_PRISMA_URL;
@@ -25,7 +61,7 @@ function normalizeDatabaseEnv() {
       "";
   }
 
-  // Migrations must use a direct connection (port 5432), not the pooler (6543).
+  // Migrations must use db.*.supabase.co (5432), not the transaction pooler (6543).
   if (
     !process.env.POSTGRES_URL_NON_POOLING ||
     isPoolerUrl(process.env.POSTGRES_URL_NON_POOLING)
@@ -59,10 +95,7 @@ normalizeDatabaseEnv();
 if (!process.env.DATABASE_URL) {
   fail(
     "nenhuma URL de banco encontrada.\n" +
-      "  Supabase: Settings → Environment Variables\n" +
-      "    DATABASE_URL = Transaction pooler (porta 6543)\n" +
-      "    DIRECT_URL   = Direct connection (porta 5432)\n" +
-      "  Ou conecte via Vercel → Storage → Marketplace → Supabase",
+      "  Conecte Supabase via Vercel Storage ou defina DATABASE_URL / STORAGE_POSTGRES_PRISMA_URL",
   );
 }
 
@@ -71,10 +104,9 @@ if (
   (!process.env.POSTGRES_URL_NON_POOLING || isPoolerUrl(process.env.POSTGRES_URL_NON_POOLING))
 ) {
   fail(
-    "DATABASE_URL aponta para o pooler, mas falta DIRECT_URL (conexão direta, porta 5432).\n" +
-      "  Supabase Dashboard → Project Settings → Database → Connection string\n" +
-      "    URI (Transaction, 6543) → DATABASE_URL\n" +
-      "    URI (Direct, 5432)     → DIRECT_URL",
+    "DATABASE_URL aponta para o pooler, mas falta conexão direta para migrations.\n" +
+      "  A integração Supabase deve injetar STORAGE_POSTGRES_HOST (db.*.supabase.co).\n" +
+      "  Ou defina DIRECT_URL manualmente (porta 5432, host db.*.supabase.co).",
   );
 }
 
