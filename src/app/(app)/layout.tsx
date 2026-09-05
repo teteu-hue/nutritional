@@ -1,24 +1,20 @@
-import Link from "next/link";
+import { AppHeader } from "@/components/app/app-header";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <Link href="/dashboard" className="text-lg font-semibold text-emerald-700">
-            Nutritional
-          </Link>
-          <nav className="flex gap-4 text-sm">
-            <Link href="/dashboard" className="hover:text-emerald-700">Dashboard</Link>
-            <Link href="/meals" className="hover:text-emerald-700">Refeições</Link>
-            <Link href="/foods" className="hover:text-emerald-700">Alimentos</Link>
-            <Link href="/goals" className="hover:text-emerald-700">Metas</Link>
-            <Link href="/assistant" className="hover:text-emerald-700">Assistente</Link>
-            <Link href="/onboarding" className="hover:text-emerald-700">Perfil</Link>
-          </nav>
+    <div className="flex min-h-screen flex-col">
+      <AppHeader />
+      <main className="flex-1">
+        <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
+          <div className="animate-fade-in">{children}</div>
         </div>
-      </header>
-      <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
+      </main>
+      <footer className="border-t border-slate-200 bg-white/60 py-6">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 text-xs text-slate-500 sm:flex-row sm:px-6">
+          <span>© {new Date().getFullYear()} Nutritional</span>
+          <span>Feito com carinho para acompanhar sua nutrição.</span>
+        </div>
+      </footer>
     </div>
   );
 }
