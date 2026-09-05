@@ -1,12 +1,18 @@
 /** Maps Vercel / Neon / Supabase Postgres env vars to what Prisma expects. */
 const fs = require("fs");
 
-function isPoolerUrl(url) {
-  return /pooler|:6543|pgbouncer/i.test(url);
+/** Transaction pooler (6543) — runtime only, not migrations. */
+function isTransactionPoolerUrl(url) {
+  return /:6543(\/|\?|$)/.test(url) || /pgbouncer=true/i.test(url);
+}
+
+/** Session pooler (5432 on pooler host) or direct db host — OK for migrations. */
+function isMigrationUrl(url) {
+  return Boolean(url) && !isTransactionPoolerUrl(url);
 }
 
 function ensurePgbouncerParam(url) {
-  if (!url || !isPoolerUrl(url) || url.includes("pgbouncer=")) return url;
+  if (!url || !isTransactionPoolerUrl(url) || url.includes("pgbouncer=")) return url;
   return url.includes("?") ? `${url}&pgbouncer=true` : `${url}?pgbouncer=true`;
 }
 
@@ -27,20 +33,22 @@ function mapStoragePrefixedEnv() {
       process.env[targetKey] = process.env[storageKey];
     }
   }
+}
 
-  if (
-    process.env.STORAGE_POSTGRES_HOST &&
-    process.env.STORAGE_POSTGRES_PASSWORD &&
-    !process.env.DIRECT_URL
-  ) {
-    const host = process.env.STORAGE_POSTGRES_HOST;
-    const db = process.env.STORAGE_POSTGRES_DATABASE || "postgres";
-    const user = process.env.STORAGE_POSTGRES_USER || "postgres";
-    const password = encodeURIComponent(process.env.STORAGE_POSTGRES_PASSWORD);
-    if (!host.includes("pooler")) {
-      process.env.DIRECT_URL = `postgres://${user}:${password}@${host}:5432/${db}?sslmode=require`;
-    }
+function resolveMigrationUrl() {
+  const candidates = [
+    process.env.POSTGRES_URL_NON_POOLING,
+    process.env.STORAGE_POSTGRES_URL_NON_POOLING,
+    process.env.DIRECT_URL,
+    process.env.DATABASE_URL_UNPOOLED,
+    process.env.SUPABASE_DB_URL,
+  ];
+
+  for (const url of candidates) {
+    if (isMigrationUrl(url)) return url;
   }
+
+  return "";
 }
 
 function normalizeDatabaseEnv() {
@@ -54,26 +62,9 @@ function normalizeDatabaseEnv() {
     }
   }
 
-  if (!process.env.POSTGRES_URL_NON_POOLING) {
-    process.env.POSTGRES_URL_NON_POOLING =
-      process.env.DIRECT_URL ||
-      process.env.DATABASE_URL_UNPOOLED ||
-      process.env.SUPABASE_DB_URL ||
-      "";
-  }
-
-  if (
-    !process.env.POSTGRES_URL_NON_POOLING ||
-    isPoolerUrl(process.env.POSTGRES_URL_NON_POOLING)
-  ) {
-    const fallback =
-      process.env.DIRECT_URL ||
-      process.env.DATABASE_URL_UNPOOLED ||
-      process.env.SUPABASE_DB_URL ||
-      "";
-    if (fallback && !isPoolerUrl(fallback)) {
-      process.env.POSTGRES_URL_NON_POOLING = fallback;
-    }
+  const migrationUrl = resolveMigrationUrl();
+  if (migrationUrl) {
+    process.env.POSTGRES_URL_NON_POOLING = migrationUrl;
   }
 
   if (!process.env.DATABASE_URL && process.env.POSTGRES_URL_NON_POOLING) {
@@ -114,15 +105,11 @@ function prepareVercelEnv() {
     );
   }
 
-  if (
-    isPoolerUrl(process.env.DATABASE_URL) &&
-    (!process.env.POSTGRES_URL_NON_POOLING ||
-      isPoolerUrl(process.env.POSTGRES_URL_NON_POOLING))
-  ) {
+  if (!isMigrationUrl(process.env.POSTGRES_URL_NON_POOLING)) {
     fail(
-      "DATABASE_URL aponta para o pooler, mas falta conexão direta para migrations.\n" +
-        "  A integração Supabase deve injetar STORAGE_POSTGRES_HOST (db.*.supabase.co).\n" +
-        "  Ou defina DIRECT_URL manualmente (porta 5432, host db.*.supabase.co).",
+      "Falta URL para migrations (porta 5432, session pooler ou direct).\n" +
+        "  Supabase via Vercel deve injetar STORAGE_POSTGRES_URL_NON_POOLING.\n" +
+        "  Ou defina DIRECT_URL / POSTGRES_URL_NON_POOLING manualmente.",
     );
   }
 
@@ -138,7 +125,7 @@ function prepareVercelEnv() {
   console.log("[ensure-vercel-env] OK — DATABASE_URL, DIRECT_URL e AUTH_SECRET configurados.");
 }
 
-module.exports = { prepareVercelEnv, normalizeDatabaseEnv };
+module.exports = { prepareVercelEnv, normalizeDatabaseEnv, isMigrationUrl, isTransactionPoolerUrl };
 
 if (require.main === module) {
   prepareVercelEnv();
