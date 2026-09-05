@@ -36,23 +36,25 @@ function tryRunCapture(cmd) {
 }
 
 function ensureTablesExist() {
-  // Estratégia: sempre tentar db push primeiro para GARANTIR que as tabelas
-  // existem. db push é idempotente (não recria o que já está lá) e não depende
-  // do estado de _prisma_migrations. Se essa etapa falhar, aborta o build —
-  // sem tabelas o app inteiro está morto.
-  const push = tryRunCapture(
-    "pnpm exec prisma db push --skip-generate --accept-data-loss",
+  // Estrategia: rodar um DDL idempotente via `prisma db execute --file`.
+  // Esse script (scripts/bootstrap-schema.sql):
+  //   - Limpa migrations failed em _prisma_migrations (destrava o Prisma)
+  //   - Cria enums, tabelas, indices e FKs usando IF NOT EXISTS / DROP+ADD
+  // E preferivel a `prisma db push` porque:
+  //   - Nao depende do estado do _prisma_migrations
+  //   - Nao tenta criar f_unaccent (que quebrava em Neon/PG18)
+  //   - Falha alto e claro se houver erro (exit code != 0)
+  const bootstrap = tryRunCapture(
+    "pnpm exec prisma db execute --file scripts/bootstrap-schema.sql --schema prisma/schema.prisma",
   );
-  if (!push.ok) {
+  if (!bootstrap.ok) {
     console.error(
-      "\n[vercel-build] ERRO CRÍTICO: prisma db push falhou.\n" +
-        "  → Verifique STORAGE_POSTGRES_URL_NON_POOLING no Vercel\n" +
-        "  → No Supabase, extensão 'unaccent' precisa estar habilitada\n" +
-        "  → Se veio de deploy quebrado: Supabase → Database → Reset\n",
+      "\n[vercel-build] ERRO CRITICO: bootstrap do schema falhou.\n" +
+        "  Verifique DATABASE_URL / POSTGRES_URL_NON_POOLING no Vercel.\n",
     );
     process.exit(1);
   }
-  console.log("[vercel-build] db push OK — schema sincronizado");
+  console.log("[vercel-build] bootstrap-schema.sql OK — tabelas garantidas");
 }
 
 function alignMigrationHistory() {
