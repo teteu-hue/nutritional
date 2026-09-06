@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Mail, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch } from "@/lib/helper/api-client";
 import { toast } from "sonner";
 
 export default function LoginPage() {

@@ -47,6 +47,7 @@ Acesse `http://localhost:3000`.
 3. Em **Settings → Environment Variables** (Production):
    - `AUTH_SECRET` — string aleatória ≥ 32 caracteres (**obrigatório**). Ex.: `openssl rand -base64 32`
    - `AUTH_URL` — URL de produção, ex.: `https://nutricaoia.vercel.app`
+   - `NEXT_PUBLIC_API_BASE_URL` — opcional; default no código: `https://nutricaoia.vercel.app`
    - `DEEPSEEK_API_KEY` — opcional (assistente de IA)
    - `AI_RATE_LIMIT_PER_HOUR=20` — opcional
 4. Faça **Redeploy** (Deployments → ⋯ → Redeploy). O script `vercel-build` valida env, aplica migrações e faz o build.

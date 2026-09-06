@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectNative } from "@/components/ui/select-native";
 import { Card, CardContent } from "@/components/ui/card";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch } from "@/lib/helper/api-client";
 import { toast } from "sonner";
 
 const ACTIVITY_OPTIONS = [

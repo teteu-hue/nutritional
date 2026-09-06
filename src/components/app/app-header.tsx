@@ -16,7 +16,7 @@ import {
   Leaf,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch } from "@/lib/helper/api-client";
 
 export type NavItem = {
   label: string;
