@@ -41,7 +41,7 @@ export default function OnboardingPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await apiFetch("/api/v1/profile", {
+      await apiFetch("/api/v1/onboarding", {
         method: "PUT",
         body: JSON.stringify({
           ...form,
