@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch } from "@/lib/helper/api-client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 

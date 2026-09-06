@@ -7,7 +7,7 @@ import { Flame, Beef, Wheat, Droplets, CalendarClock, UtensilsCrossed } from "lu
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { PageHeader } from "@/components/ui/page-header";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch } from "@/lib/helper/api-client";
 import { cn } from "@/lib/utils";
 
 type DailyDashboard = {
