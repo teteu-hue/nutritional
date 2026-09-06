@@ -47,9 +47,7 @@ export default function OnboardingPage() {
           ...form,
           height_cm: Number(form.height_cm),
           weight_kg: Number(form.weight_kg),
-          body_fat_percent: form.body_fat_percent
-            ? Number(form.body_fat_percent)
-            : null,
+          body_fat_percent: form.body_fat_percent ? Number(form.body_fat_percent) : null,
         }),
         skipRedirect: true,
       });
@@ -73,8 +71,7 @@ export default function OnboardingPage() {
             Bem-vindo! Complete seu perfil
           </h1>
           <p className="mt-2 max-w-lg text-sm text-slate-600 sm:text-base">
-            Precisamos desses dados para calcular suas metas nutricionais
-            personalizadas.
+            Precisamos desses dados para calcular suas metas nutricionais personalizadas.
           </p>
         </div>
 
@@ -166,12 +163,7 @@ export default function OnboardingPage() {
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                 Seus dados são usados apenas para calcular suas metas.
               </p>
-              <Button
-                type="submit"
-                disabled={loading}
-                size="lg"
-                className="w-full sm:w-auto"
-              >
+              <Button type="submit" disabled={loading} size="lg" className="w-full sm:w-auto">
                 {loading ? "Salvando..." : "Concluir onboarding"}
               </Button>
             </div>

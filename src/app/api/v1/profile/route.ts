@@ -10,7 +10,10 @@ export async function GET(request: Request) {
     if (!profile) {
       return jsonOk({ complete: false, profile: null });
     }
-    return jsonOk({ complete: Boolean(user.onboardingCompletedAt), profile: serializeProfile(profile) });
+    return jsonOk({
+      complete: Boolean(user.onboardingCompletedAt),
+      profile: serializeProfile(profile),
+    });
   } catch (error) {
     return jsonError(error);
   }
