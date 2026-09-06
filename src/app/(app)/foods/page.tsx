@@ -24,7 +24,7 @@ type Food = {
 };
 
 export default function FoodsPage() {
-  const [search, setSearch] = useState("arroz");
+  const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
 
   const { data, refetch, isLoading } = useQuery({
@@ -33,14 +33,13 @@ export default function FoodsPage() {
       apiFetch<{ items: Food[] }>(
         `/api/v1/foods?search=${encodeURIComponent(search)}&page=1`,
       ),
-    enabled: search.length >= 2,
   });
 
   async function createFood(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     try {
-      await apiFetch("/api/v1/foods", {
+      const created = await apiFetch<Food>("/api/v1/foods", {
         method: "POST",
         body: JSON.stringify({
           name: fd.get("name"),
@@ -55,7 +54,8 @@ export default function FoodsPage() {
       });
       toast.success("Alimento criado");
       setShowForm(false);
-      refetch();
+      setSearch(created.name);
+      await refetch();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro");
     }
@@ -131,10 +131,12 @@ export default function FoodsPage() {
               Buscando...
             </li>
           )}
-          {!isLoading && items.length === 0 && search.length >= 2 && (
+          {!isLoading && items.length === 0 && (
             <li className="px-5 py-8 text-center">
               <ChefHat className="mx-auto mb-2 h-8 w-8 text-slate-300" />
-              <p className="text-sm text-slate-500">Nenhum resultado</p>
+              <p className="text-sm text-slate-500">
+                {search ? "Nenhum resultado" : "Nenhum alimento encontrado"}
+              </p>
             </li>
           )}
           {items.map((food) => (

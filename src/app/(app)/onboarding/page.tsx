@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,19 @@ const GOAL_OPTIONS = [
   { value: "ganhar_peso", label: "Ganhar peso" },
 ];
 
+type ProfileResponse = {
+  complete: boolean;
+  profile: {
+    date_of_birth: string;
+    biological_sex: string;
+    height_cm: number;
+    weight_kg: number;
+    body_fat_percent: number | null;
+    activity_level: string;
+    goal: string;
+  } | null;
+};
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -36,6 +50,28 @@ export default function OnboardingPage() {
     activity_level: "moderado",
     goal: "manter_peso",
   });
+
+  const { data: profileData, isLoading: isLoadingProfile } = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => apiFetch<ProfileResponse>("/api/v1/profile"),
+  });
+
+  useEffect(() => {
+    if (!profileData?.profile) return;
+
+    setForm({
+      date_of_birth: profileData.profile.date_of_birth,
+      biological_sex: profileData.profile.biological_sex,
+      height_cm: String(profileData.profile.height_cm),
+      weight_kg: String(profileData.profile.weight_kg),
+      body_fat_percent:
+        profileData.profile.body_fat_percent == null
+          ? ""
+          : String(profileData.profile.body_fat_percent),
+      activity_level: profileData.profile.activity_level,
+      goal: profileData.profile.goal,
+    });
+  }, [profileData]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -163,8 +199,13 @@ export default function OnboardingPage() {
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                 Seus dados são usados apenas para calcular suas metas.
               </p>
-              <Button type="submit" disabled={loading} size="lg" className="w-full sm:w-auto">
-                {loading ? "Salvando..." : "Concluir onboarding"}
+              <Button
+                type="submit"
+                disabled={loading || isLoadingProfile}
+                size="lg"
+                className="w-full sm:w-auto"
+              >
+                {loading || isLoadingProfile ? "Salvando..." : "Concluir onboarding"}
               </Button>
             </div>
           </form>

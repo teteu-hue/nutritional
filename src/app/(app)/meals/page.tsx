@@ -57,7 +57,7 @@ export default function MealsPage() {
       });
       toast.success("Refeição registrada");
       setFoodId("");
-      refetch();
+      await refetch();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro");
     }

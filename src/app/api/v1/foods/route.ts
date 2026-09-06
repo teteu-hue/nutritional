@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const page = Number(searchParams.get("page") ?? "1");
     const pageSize = Number(searchParams.get("pageSize") ?? "20");
 
-    const foods = search ? await searchFoods(user.id, search, page, pageSize) : [];
+    const foods = await searchFoods(user.id, search, page, pageSize);
     return jsonOk({ items: foods, page, pageSize });
   } catch (error) {
     return jsonError(error);
