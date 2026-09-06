@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Plus, Coffee, Utensils, Moon, Cookie, ClipboardList } from "lucide-react";
+import { Plus, Coffee, Utensils, Moon, Cookie, ClipboardList, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,14 @@ type Meal = {
   meal_type: string;
   totals: { kcal: number; protein_g: number };
   items: Array<{ food_name: string; portion_amount: number }>;
+};
+
+type Food = {
+  id: string;
+  name: string;
+  kcal: number;
+  protein_g: number;
+  source: string;
 };
 
 const MEAL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -33,7 +41,9 @@ function MealIcon({ type }: { type: string }) {
 
 export default function MealsPage() {
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [foodId, setFoodId] = useState("");
+  const [foodSearch, setFoodSearch] = useState("");
+  const [selectedFood, setSelectedFood] = useState<Food | null>(null);
+  const [showFoodOptions, setShowFoodOptions] = useState(false);
   const [portion, setPortion] = useState("100");
 
   const { data, refetch, isLoading } = useQuery({
@@ -41,9 +51,17 @@ export default function MealsPage() {
     queryFn: () => apiFetch<{ items: Meal[] }>(`/api/v1/meals?date=${date}`),
   });
 
+  const { data: foodsData, isLoading: isLoadingFoods } = useQuery({
+    queryKey: ["meal-foods", foodSearch],
+    queryFn: () =>
+      apiFetch<{ items: Food[] }>(
+        `/api/v1/foods?search=${encodeURIComponent(foodSearch)}&page=1&pageSize=8`,
+      ),
+  });
+
   async function addMeal() {
-    if (!foodId) {
-      toast.error("Informe o ID do alimento");
+    if (!selectedFood) {
+      toast.error("Selecione um alimento da lista");
       return;
     }
     try {
@@ -52,11 +70,12 @@ export default function MealsPage() {
         body: JSON.stringify({
           meal_date: date,
           meal_type: "almoco",
-          items: [{ food_id: foodId, portion_amount: Number(portion), portion_unit: "g100" }],
+          items: [{ food_id: selectedFood.id, portion_amount: Number(portion), portion_unit: "g100" }],
         }),
       });
       toast.success("Refeição registrada");
-      setFoodId("");
+      setFoodSearch("");
+      setSelectedFood(null);
       await refetch();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro");
@@ -64,6 +83,7 @@ export default function MealsPage() {
   }
 
   const meals = data?.items ?? [];
+  const foodOptions = foodsData?.items ?? [];
 
   return (
     <div className="space-y-8">
@@ -93,11 +113,59 @@ export default function MealsPage() {
         </CardHeader>
         <CardContent className="pt-0">
           <div className="grid gap-3 sm:grid-cols-[1fr_140px_auto]">
-            <Input
-              placeholder="ID do alimento"
-              value={foodId}
-              onChange={(e) => setFoodId(e.target.value)}
-            />
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                placeholder="Alimento"
+                value={foodSearch}
+                onFocus={() => setShowFoodOptions(true)}
+                onBlur={() => window.setTimeout(() => setShowFoodOptions(false), 120)}
+                onChange={(e) => {
+                  setFoodSearch(e.target.value);
+                  setSelectedFood(null);
+                  setShowFoodOptions(true);
+                }}
+                className="pl-11"
+              />
+              {showFoodOptions && !selectedFood && (
+                <div className="absolute inset-x-0 top-full z-20 mt-2 max-h-72 overflow-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
+                  {isLoadingFoods && (
+                    <p className="px-3 py-2 text-sm text-slate-500">Buscando alimentos...</p>
+                  )}
+                  {!isLoadingFoods && foodOptions.length === 0 && (
+                    <p className="px-3 py-2 text-sm text-slate-500">
+                      Nenhum alimento encontrado.
+                    </p>
+                  )}
+                  {!isLoadingFoods &&
+                    foodOptions.map((food) => (
+                      <button
+                        key={food.id}
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          setSelectedFood(food);
+                          setFoodSearch(food.name);
+                          setShowFoodOptions(false);
+                        }}
+                        className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50"
+                      >
+                        <span>
+                          <span className="font-medium text-slate-800">{food.name}</span>
+                          {food.source === "user" && (
+                            <span className="ml-2 rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand-strong">
+                              personalizado
+                            </span>
+                          )}
+                        </span>
+                        <span className="shrink-0 text-xs text-slate-500">
+                          {food.kcal} kcal · {food.protein_g}g prot
+                        </span>
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
             <Input
               type="number"
               placeholder="Porção (g)"

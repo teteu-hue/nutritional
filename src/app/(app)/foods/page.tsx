@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Plus, Search, ChefHat } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Search, ChefHat, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,16 +18,23 @@ import { toast } from "sonner";
 type Food = {
   id: string;
   name: string;
+  base_unit: string;
   kcal: number;
   protein_g: number;
+  carb_g: number;
+  fat_g: number;
+  fiber_g: number;
+  sodium_mg: number;
   source: string;
 };
 
 export default function FoodsPage() {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [editingFood, setEditingFood] = useState<Food | null>(null);
 
-  const { data, refetch, isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["foods", search],
     queryFn: () =>
       apiFetch<{ items: Food[] }>(
@@ -35,31 +42,55 @@ export default function FoodsPage() {
       ),
   });
 
-  async function createFood(e: React.FormEvent<HTMLFormElement>) {
+  function closeForm() {
+    setShowForm(false);
+    setEditingFood(null);
+  }
+
+  async function saveFood(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     try {
-      const created = await apiFetch<Food>("/api/v1/foods", {
-        method: "POST",
-        body: JSON.stringify({
-          name: fd.get("name"),
-          base_unit: "g100",
-          kcal: Number(fd.get("kcal")),
-          protein_g: Number(fd.get("protein_g")),
-          carb_g: Number(fd.get("carb_g")),
-          fat_g: Number(fd.get("fat_g")),
-          fiber_g: Number(fd.get("fiber_g")),
-          sodium_mg: Number(fd.get("sodium_mg")),
-        }),
-      });
-      toast.success("Alimento criado");
-      setShowForm(false);
-      setSearch(created.name);
-      await refetch();
+      const saved = await apiFetch<Food>(
+        editingFood ? `/api/v1/foods/${editingFood.id}` : "/api/v1/foods",
+        {
+          method: editingFood ? "PUT" : "POST",
+          body: JSON.stringify({
+            name: fd.get("name"),
+            base_unit: "g100",
+            kcal: Number(fd.get("kcal")),
+            protein_g: Number(fd.get("protein_g")),
+            carb_g: Number(fd.get("carb_g")),
+            fat_g: Number(fd.get("fat_g")),
+            fiber_g: Number(fd.get("fiber_g")),
+            sodium_mg: Number(fd.get("sodium_mg")),
+          }),
+        },
+      );
+      toast.success(editingFood ? "Alimento atualizado" : "Alimento criado");
+      closeForm();
+      setSearch(saved.name);
+      await queryClient.invalidateQueries({ queryKey: ["foods"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro");
     }
   }
+
+  function startCreate() {
+    if (showForm && !editingFood) {
+      closeForm();
+      return;
+    }
+    setEditingFood(null);
+    setShowForm(true);
+  }
+
+  function startEdit(food: Food) {
+    setEditingFood(food);
+    setShowForm(true);
+  }
+
+  const formFood = editingFood;
 
   const items = data?.items ?? [];
 
@@ -71,11 +102,11 @@ export default function FoodsPage() {
         description="Pesquise no catálogo base ou crie alimentos personalizados."
         action={
           <Button
-            onClick={() => setShowForm((v) => !v)}
-            variant={showForm ? "ghost" : "default"}
+            onClick={startCreate}
+            variant={showForm && !editingFood ? "ghost" : "default"}
           >
             <Plus className="h-4 w-4" />
-            {showForm ? "Cancelar" : "Novo alimento"}
+            {showForm && !editingFood ? "Cancelar" : "Novo alimento"}
           </Button>
         }
       />
@@ -93,32 +124,67 @@ export default function FoodsPage() {
       {showForm && (
         <Card className="animate-fade-in">
           <CardHeader>
-            <CardTitle>Criar alimento personalizado</CardTitle>
+            <CardTitle>
+              {editingFood ? "Editar alimento personalizado" : "Criar alimento personalizado"}
+            </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <form onSubmit={createFood} className="grid gap-3 sm:grid-cols-2">
-              <Input name="name" placeholder="Nome" required />
-              <Input name="kcal" type="number" placeholder="Kcal/100g" required />
-              <Input name="protein_g" type="number" placeholder="Proteínas" required />
-              <Input name="carb_g" type="number" placeholder="Carboidratos" required />
-              <Input name="fat_g" type="number" placeholder="Gorduras" required />
+            <form
+              key={formFood?.id ?? "create-food"}
+              onSubmit={saveFood}
+              className="grid gap-3 sm:grid-cols-2"
+            >
+              <Input name="name" placeholder="Nome" defaultValue={formFood?.name} required />
+              <Input
+                name="kcal"
+                type="number"
+                placeholder="Kcal/100g"
+                defaultValue={formFood?.kcal}
+                required
+              />
+              <Input
+                name="protein_g"
+                type="number"
+                placeholder="Proteínas"
+                defaultValue={formFood?.protein_g}
+                required
+              />
+              <Input
+                name="carb_g"
+                type="number"
+                placeholder="Carboidratos"
+                defaultValue={formFood?.carb_g}
+                required
+              />
+              <Input
+                name="fat_g"
+                type="number"
+                placeholder="Gorduras"
+                defaultValue={formFood?.fat_g}
+                required
+              />
               <Input
                 name="fiber_g"
                 type="number"
                 placeholder="Fibras"
-                defaultValue={0}
+                defaultValue={formFood?.fiber_g ?? 0}
                 required
               />
               <Input
                 name="sodium_mg"
                 type="number"
                 placeholder="Sódio mg"
-                defaultValue={0}
+                defaultValue={formFood?.sodium_mg ?? 0}
                 required
               />
-              <Button type="submit" className="sm:col-span-2">
-                Salvar
-              </Button>
+              <div className="flex gap-2 sm:col-span-2">
+                <Button type="submit">
+                  {editingFood ? "Salvar alterações" : "Salvar"}
+                </Button>
+                <Button type="button" variant="ghost" onClick={closeForm}>
+                  Cancelar
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>
@@ -142,7 +208,7 @@ export default function FoodsPage() {
           {items.map((food) => (
             <li
               key={food.id}
-              className="flex flex-col items-start justify-between gap-1 px-5 py-4 text-sm sm:flex-row sm:items-center"
+              className="flex flex-col items-start justify-between gap-3 px-5 py-4 text-sm sm:flex-row sm:items-center"
             >
               <div className="flex items-center gap-2">
                 <span className="font-medium text-slate-800">{food.name}</span>
@@ -152,9 +218,24 @@ export default function FoodsPage() {
                   </span>
                 )}
               </div>
-              <span className="text-slate-500">
-                {food.kcal} kcal · {food.protein_g}g prot
-              </span>
+              <div className="flex flex-wrap items-center gap-2 text-slate-500">
+                <span>
+                  {food.kcal} kcal · {food.protein_g}g prot
+                </span>
+                {food.source === "user" && (
+                  <>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => startEdit(food)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Editar
+                    </Button>
+                  </>
+                )}
+              </div>
             </li>
           ))}
         </ul>
