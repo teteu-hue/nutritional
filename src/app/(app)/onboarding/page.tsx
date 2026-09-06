@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
@@ -35,43 +35,70 @@ type ProfileResponse = {
     body_fat_percent: number | null;
     activity_level: string;
     goal: string;
+    updated_at: string;
   } | null;
 };
 
-export default function OnboardingPage() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({
-    date_of_birth: "",
-    biological_sex: "male",
-    height_cm: "",
-    weight_kg: "",
-    body_fat_percent: "",
-    activity_level: "moderado",
-    goal: "manter_peso",
-  });
+type ProfileForm = {
+  date_of_birth: string;
+  biological_sex: string;
+  height_cm: string;
+  weight_kg: string;
+  body_fat_percent: string;
+  activity_level: string;
+  goal: string;
+};
 
+const EMPTY_PROFILE_FORM: ProfileForm = {
+  date_of_birth: "",
+  biological_sex: "male",
+  height_cm: "",
+  weight_kg: "",
+  body_fat_percent: "",
+  activity_level: "moderado",
+  goal: "manter_peso",
+};
+
+function profileToForm(profile: NonNullable<ProfileResponse["profile"]>): ProfileForm {
+  return {
+    date_of_birth: profile.date_of_birth,
+    biological_sex: profile.biological_sex,
+    height_cm: String(profile.height_cm),
+    weight_kg: String(profile.weight_kg),
+    body_fat_percent: profile.body_fat_percent == null ? "" : String(profile.body_fat_percent),
+    activity_level: profile.activity_level,
+    goal: profile.goal,
+  };
+}
+
+export default function OnboardingPage() {
   const { data: profileData, isLoading: isLoadingProfile } = useQuery({
     queryKey: ["profile"],
     queryFn: () => apiFetch<ProfileResponse>("/api/v1/profile"),
   });
 
-  useEffect(() => {
-    if (!profileData?.profile) return;
+  const profile = profileData?.profile;
+  const initialForm = profile ? profileToForm(profile) : EMPTY_PROFILE_FORM;
 
-    setForm({
-      date_of_birth: profileData.profile.date_of_birth,
-      biological_sex: profileData.profile.biological_sex,
-      height_cm: String(profileData.profile.height_cm),
-      weight_kg: String(profileData.profile.weight_kg),
-      body_fat_percent:
-        profileData.profile.body_fat_percent == null
-          ? ""
-          : String(profileData.profile.body_fat_percent),
-      activity_level: profileData.profile.activity_level,
-      goal: profileData.profile.goal,
-    });
-  }, [profileData]);
+  return (
+    <OnboardingForm
+      key={profile?.updated_at ?? "new-profile"}
+      initialForm={initialForm}
+      isLoadingProfile={isLoadingProfile}
+    />
+  );
+}
+
+function OnboardingForm({
+  initialForm,
+  isLoadingProfile,
+}: {
+  initialForm: ProfileForm;
+  isLoadingProfile: boolean;
+}) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState(initialForm);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
