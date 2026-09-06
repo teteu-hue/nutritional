@@ -1,7 +1,15 @@
+import { updateSession } from "@/auth";
 import { jsonError, jsonOk, ApiError } from "@/server/core/errors";
 import { requireUser } from "@/server/core/auth";
 import { profileSchema } from "@/server/user-accounts/schemas";
 import { serializeProfile, upsertProfile } from "@/server/user-accounts/service";
+
+async function refreshCookieSession(request: Request): Promise<void> {
+  const authHeader = request.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) return;
+
+  await updateSession({});
+}
 
 export async function updateProfile(request: Request) {
   try {
@@ -16,6 +24,7 @@ export async function updateProfile(request: Request) {
     }
 
     const profile = await upsertProfile(user.id, parsed.data);
+    await refreshCookieSession(request);
     return jsonOk({ profile: serializeProfile(profile), complete: true });
   } catch (error) {
     return jsonError(error);

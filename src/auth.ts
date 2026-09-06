@@ -7,7 +7,13 @@ import { prisma } from "@/server/core/db";
 import { verifyPassword } from "@/server/user-accounts/security";
 import { getConfig } from "@/server/core/config";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const {
+  handlers,
+  auth,
+  signIn,
+  signOut,
+  unstable_update: updateSession,
+} = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(prisma) as Adapter,
   secret: getConfig().AUTH_SECRET,
